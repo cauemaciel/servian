@@ -1,4 +1,4 @@
-## https://rancher.management.servian.stg
+## https://rancher.management.servian.dev
 
 
 # 2 - Setup Ingress, CertManager and Rancher
