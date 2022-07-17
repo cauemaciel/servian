@@ -1,0 +1,58 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: kubernetes-alerts
+  namespace: cattle-monitoring-system
+spec:
+  groups:
+  - name: kubernetes
+    rules:
+    - alert: 'Kubernetes - KubeAPIDown'
+      annotations:
+        description: KubeAPI has disappeared from Prometheus target discovery.
+        summary: Target disappeared from Prometheus target discovery.
+      expr: absent(up{job="apiserver"} == 1)
+      for: 300s
+      labels:
+        severity: P1
+        type: kubernetes
+
+    - alert: 'Kubernetes - KubeCoreDNSDown'
+      annotations:
+        description: CoreDNS has disappeared from Prometheus target discovery.
+        summary: Target disappeared from Prometheus target discovery.
+      expr: absent(up{job="coredns"} == 1)
+      for: 300s
+      labels:
+        severity: P1
+        type: kubernetes
+
+    - alert: 'Kubernetes - KubeSateMetricsDown'
+      annotations:
+        description: Kube Sate Metrics has disappeared from Prometheus target discovery.
+        summary: Target disappeared from Prometheus target discovery.
+      expr: absent(up{job="kube-state-metrics"} == 1)
+      for: 300s
+      labels:
+        severity: P2
+        type: kubernetes
+
+    # - alert: 'Kubernetes - IstioIngressGatewayDown'
+    #   annotations:
+    #     description: Istio Ingress Gateway has disappeared from Prometheus target discovery.
+    #     summary: Target disappeared from Prometheus target discovery.
+    #   expr: absent(up{job="istio-ingressgateway"} == 1)
+    #   for: 300s
+    #   labels:
+    #     severity: P1
+    #     type: kubernetes
+
+    # - alert: 'Kubernetes - IstioPilotDown'
+    #   annotations:
+    #     description: Istio Pilot has disappeared from Prometheus target discovery.
+    #     summary: Target disappeared from Prometheus target discovery.
+    #   expr: absent(up{job="pilot"} == 1)
+    #   for: 300s
+    #   labels:
+    #     severity: P1
+    #     type: kubernetes

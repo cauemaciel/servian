@@ -1,0 +1,37 @@
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: backup-tidas-homolog
+  namespace: velero
+spec:
+  schedule: 30 3 * * *
+  template:
+    includedNamespaces:
+    - '*'
+    excludedNamespaces:
+      - cattle-dashboards             
+      - cattle-fleet-system           
+      - cattle-impersonation-system   
+      - cattle-monitoring-system      
+      - cattle-system                 
+      - cert-manager                  
+      - clear                         
+      - default                                                 
+      - fleet-system                  
+      - ingress-nginx                 
+      - kube-node-lease               
+      - kube-public                   
+      - kube-system                   
+      - local                         
+      - velero  
+    includedResources:
+    - '*'
+    excludedResources:
+    - storageclasses.storage.k8s.io
+    - PersistentVolume
+    - PersistentVolumeClaim
+    - VolumeAttachment
+    storageLocation: default
+    volumeSnapshotLocations:
+      - default
+    ttl: 720h

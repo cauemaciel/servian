@@ -1,0 +1,129 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-pipeline-config
+  namespace: elastic-stack
+data:
+  logstash.conf: |-
+    # ------------------------------------------------------------------- #
+    #                 Input block configuration                           #
+    # ------------------------------------------------------------------- #
+    input {
+      # This input plugin enables Logstash to receive events from the Beats framework
+      beats {
+        # The port to listen on
+        port => "${LOGSTASH_PORT:6000}"
+      }
+    }
+
+    # ------------------------------------------------------------------- #
+    #                 Filter block configuration                          #
+    # ------------------------------------------------------------------- #
+    filter {
+
+      # Conditional to isolate logs coming from Kube System
+      if [kubernetes][namespace] == "kube-system" {
+
+        # Conditional to isolate logs coming from spotinst controller
+        if "spotinst-kubernetes-cluster-controller" in [kubernetes][pod][name] {
+          grok {
+            match => { "message" => '%{WORD:log.level} \[%{TIMESTAMP_ISO8601:log.timestamp}\] \[%{NOTSPACE:log.class}\] %{GREEDYDATA:log.message}' }
+          }
+        }
+
+        # Conditional for processing Tiller logs (usually runs together with spotinst pods)
+        else if "tiller-deploy" in [kubernetes][pod][name] {
+          dissect {
+            mapping => {
+              "message" => "[%{internal_component}] %{log_timestamp} %{log_message}"
+            }
+          }
+          if "_dissectfailure" in [tags] {
+            mutate {
+                add_field => { "filter_failed" => "tiller-deploy" }
+            }
+          }
+        }
+
+        # Conditional for processing coredns logs (usually runs together with spotinst pods)
+        else if "coredns" in [kubernetes][pod][name] {
+          dissect {
+            mapping => {
+              "message" => "[%{internal_component}] %{log_timestamp} %{log_message}"
+            }
+          }
+          if "_dissectfailure" in [tags] {
+            mutate {
+                add_field => { "filter_failed" => "metrics-server" }
+            }
+          }
+        }
+      }
+
+      # Conditional to isolate logs coming from Ingress Nginx
+      if [kubernetes][namespace] == "ingress-nginx" {
+        grok {
+          match => { "message" => '%{IP:client_ip} - %{NOTSPACE:user} \[%{HTTPDATE:log_timestamp}\] "%{WORD:method} %{DATA:request_uri}" %{NUMBER:status_code} %{NUMBER:byte_send} "%{DATA:request_referrer}" "%{DATA:user_agent}" %{NUMBER:request_length} %{NUMBER:response_time} \[%{NOTSPACE}\] \[\] %{IP:upstream_proxy}:%{NUMBER:upstream_port} %{NUMBER:upstream_bytes_sent;long} %{NUMBER:upstream_response_time} %{NUMBER:upstream_response} %{NOTSPACE:connection_id}' }
+        }
+        if "_grokparsefailure" in [tags] {
+          mutate {
+              add_field => { "filter_failed" => "ingress" }
+          }
+        }
+      }
+
+      # Conditional to isolate logs coming from Cert Manager
+      if [kubernetes][namespace] == "cert-manager" {
+        grok {
+          match => { "message" => '%{NOTSPACE:evente_id} %{TIME:log_timestamp} %{NUMBER} %{NOTSPACE:internal_component}\] %{NOTSPACE:certmanager_class} %{GREEDYDATA:log_message}' }
+        }
+        kv {
+          source => "log_message"
+          transform_key => "lowercase"
+          transform_value => "lowercase"
+        }
+        if "_kv_filter_error" in [tags] or "_grokparsefailure" in [tags] {
+          mutate {
+              add_field => { "filter_failed" => "cert-manager" }
+          }
+        }
+      }
+    }
+
+
+    # ------------------------------------------------------------------- #
+    #                 Generic Filter Block                                #
+    # ------------------------------------------------------------------- #
+    filter {
+      
+      # Drop empty lines
+      if [message] =~ /^\s*$/ {
+        drop { }
+      }
+
+      # Parse Namespace name to use how index name
+      if ![@metadata][index_reference] {
+        dissect {
+          mapping => {
+            "[kubernetes][namespace]" => "%{[@metadata][index_reference]}-%{}"
+          }
+        }
+      }
+    }
+
+
+    # ------------------------------------------------------------------- #
+    #                 Output block configuration                          #
+    # ------------------------------------------------------------------- #
+    output {      
+        elasticsearch {
+        # Sets the host(s) of the remote instance
+        hosts => "${ES_HOST}"
+        # Username to authenticate to a secure Elasticsearch cluster
+        user => "${ES_USERNAME}"
+        # Password to authenticate to a secure Elasticsearch cluster
+        password => "${ES_PASSWORD}"
+        # The index to write events to
+        index => "%{[@metadata][index_reference]}-production"
+      }
+    }

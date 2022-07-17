@@ -1,0 +1,97 @@
+#  kubectl create clusterrole exec-clear-pod-delete --verb=get,list,watch,delete --resource=pods
+# kubectl create rolebinding exec-clear --clusterrole=exec-clear-pod-delete --serviceaccount=clear:exec-clear --namespace=clear
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: exec-clear
+  namespace: clear
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: exec-clear-pod-delete
+  # namespace: clear
+rules:
+- apiGroups:
+  - '*'
+  resources:
+  - 'pods'
+  verbs:
+  - '*'
+- nonResourceURLs:
+  - '*'
+  verbs:
+  - '*'
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: read-secrets-global
+subjects:
+- kind: ServiceAccount
+  name: exec-clear
+  namespace: clear
+roleRef:
+  kind: ClusterRole
+  name: exec-clear-pod-delete
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: exec-clear-pod-delete
+  namespace: clear
+data:
+  script.sh: |-
+    #!/bin/bash
+    for pods in $(kubectl get pod -A | grep -e NodeAffinity -e Shutdown -e Error -e Terminated -e Terminating -e OutOfcpu | sed 's/   */:/g')
+    do
+      ns=$(echo $pods | cut -d : -f 1)
+      pod=$(echo $pods | cut -d : -f 2)
+      kubectl delete pod --grace-period=0 --force -n $ns $pod
+      echo "Ok"
+    done
+
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: exec-clear
+  namespace: clear
+spec:
+  concurrencyPolicy: Allow
+  failedJobsHistoryLimit: 1
+  schedule: '0 * * * *'
+  successfulJobsHistoryLimit: 3
+  suspend: false
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - image: gcr.io/cloud-builders/kubectl
+            imagePullPolicy: Always
+            name: exec-clear
+            command:
+            - /bin/bash
+            args:
+            - /script.sh
+            stdin: true
+            tty: true
+            volumeMounts:
+            - name: script
+              mountPath: /script.sh
+              subPath: script.sh
+          serviceAccountName: exec-clear
+          restartPolicy: OnFailure
+          volumes:
+          - name: script
+            configMap:
+              name: exec-clear-pod-delete
+              items:
+              - key: script.sh
+                path: script.sh

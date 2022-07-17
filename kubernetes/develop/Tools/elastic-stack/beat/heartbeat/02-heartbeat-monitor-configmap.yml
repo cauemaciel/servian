@@ -1,0 +1,36 @@
+# https://www.elastic.co/guide/en/beats/heartbeat/current/heartbeat-reference-yml.html
+
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: heartbeat-monitor-config
+  namespace: elastic-stack
+data:
+  backend.yml: |-
+    # - name: assina-v1
+    #   id: assina-v1
+    #   type: http
+    #   enabled: true
+    #   schedule: "@every 30s"
+    #   urls: ["http://assina.escriba-homolog:8087/actuator/health"]
+    #   ipv6: false
+    #   check:
+    #     request:
+    #       method: GET
+    #     response:
+    #       status: 200
+    #   tags: ["homolog", "backend"]
+    # - name: auth-v1
+
+  services.yml: |-
+    # RABBITMQ
+    - name: RabbitMQ - homolog
+      id: rabbitmq-homolog
+      type: tcp
+      enabled: true
+      schedule: "@every 30s"
+      hosts: ["rabbit-homolog-rabbitmq.rabbit-homolog:5672"]
+      check.send: "Check"
+      check.receive: "Check"
+      ipv6: false
+      tags: ["homolog", "services"]

@@ -1,0 +1,49 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: heartbeat-config
+  namespace: elastic-stack
+data:
+  heartbeat.yml: |-
+    output:
+      elasticsearch:
+        hosts: ["${HEARTBEAT_ES_HOST}"]
+        username: ${HEARTBEAT_ES_USERNAME}
+        password: ${HEARTBEAT_ES_PASSWORD}
+        ssl:
+          certificate_authorities: ["/usr/share/heartbeat/certs/elasticsearch/ca.crt"]
+        index: "heartbeat-7-homolog-%{+yyyy.MM.dd}"
+
+    xpack:
+      monitoring:
+        enabled: true
+
+    setup:
+      ilm:
+        enabled: false
+      template:
+        name: 'heartbeat-7-homolog'
+        pattern: 'heartbeat-7-homolog-*'
+
+    heartbeat:
+      config:
+        monitors:
+          path: monitors.d/*.yml
+          reload:
+            enabled: true
+            period: 30s
+      scheduler:
+        limit: 250
+      ipv6: false
+
+    processors:
+      - add_observer_metadata:
+          cache.ttl: 5m
+          geo:
+            name: us-east1
+            location: 34.019710, -81.044351
+            continent_name: North America
+            country_iso_code: US
+            region_name: Carolina Do Sul
+            region_iso_code: SC
+            city_name: Carolina Do Sul

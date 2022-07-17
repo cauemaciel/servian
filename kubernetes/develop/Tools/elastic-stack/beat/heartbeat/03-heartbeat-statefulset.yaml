@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elastic-heartbeat-homolog
+  namespace: elastic-stack
+spec:
+  serviceName: heartbeatv7
+  replicas: 1
+  selector:
+    matchLabels:
+      app: heartbeatv7
+  template:
+    metadata:
+      labels:
+        app: heartbeatv7
+    spec:
+      containers:
+      - env:
+        - name: HEARTBEAT_ES_HOST
+          value: "https://elasticsearch-es-http:9200"
+        - name: HEARTBEAT_ES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-es-elastic-user
+              key: elastic
+        - name: HEARTBEAT_ES_USERNAME
+          value: "elastic"
+        image: docker.elastic.co/beats/heartbeat:7.17.3
+        name: heartbeatv7-17-3
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: 100m
+          limits:
+            memory: 256Mi
+            cpu: 100m
+        securityContext:
+          privileged: true
+
+        volumeMounts:
+        - name: heartbeat-config
+          mountPath: /usr/share/heartbeat/heartbeat.yml
+          subPath: heartbeat.yml
+        - name: heartbeat-monitor-config
+          mountPath: /usr/share/heartbeat/monitors.d/
+        - name: elastic-es-http-certs-public
+          mountPath: "/usr/share/heartbeat/certs/elasticsearch/"
+          readOnly: true
+
+      volumes:
+      - name: heartbeat-config
+        configMap:
+          name: heartbeat-config
+      - name: heartbeat-monitor-config
+        configMap:
+          name: heartbeat-monitor-config
+      - name: elastic-es-http-certs-public
+        secret:
+          secretName: elasticsearch-es-http-certs-public
+          items:
+          - key: ca.crt
+            path: ca.crt
+
+      restartPolicy: Always
+      nodeSelector:
+        node_group: management-private

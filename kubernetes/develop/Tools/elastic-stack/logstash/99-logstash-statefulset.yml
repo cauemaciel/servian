@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: logstash-staging
+  namespace: elastic-stack
+spec:
+  ports:
+  - name: logstashv7
+    port: 6000
+    targetPort: 6000
+  - name: metrics
+    port: 9600
+    targetPort: 9600
+  selector:
+    app: logstashv7
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elastic-logstash-staging
+  namespace: elastic-stack
+  labels:
+    app: logstashv7
+    version: 17-3
+spec:
+  serviceName: logstashv7
+  replicas: 1
+  selector:
+    matchLabels:
+      app: logstashv7
+  template:
+    metadata:
+      labels:
+        app: logstashv7
+    spec:
+      terminationGracePeriodSeconds: 300
+      containers:
+      - name: logstash
+        image: docker.elastic.co/logstash/logstash:7.16.3
+        env:
+        - name: ES_HOST
+          value:  https://xgrow-dev.es.us-central1.gcp.cloud.es.io:9243
+        - name: ES_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-es-logstash-user
+              key: username
+        - name: ES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-es-logstash-user
+              key: password
+        # - name: ES_USERNAME
+        #   value: logstash
+        # - name: ES_PASSWORD
+        #   value: BWFjMJ7zdYQAJaN
+        - name: LOGSTASH_HOST
+          value: 0.0.0.0
+        - name: LOGSTASH_PORT
+          value: "6000"
+        - name: ES_JAVA_OPTS
+          value: -Xms512m -Xmx512m
+        ports:
+        - name: logstashv7 
+          containerPort: 6000
+        - name: metrics 
+          containerPort: 9600
+        resources:
+          requests:
+            memory: 1Gi
+            cpu: 0.5
+          limits:
+            memory: 2Gi
+            cpu: 1
+        securityContext:
+          privileged: true
+
+        volumeMounts:
+        - name: logstash-config
+          mountPath: /usr/share/logstash/config/logstash.yml
+          subPath: logstash.yml
+        - name: logstash-pipeline-manager-config
+          mountPath: /usr/share/logstash/config/pipelines.yml
+          subPath: pipelines.yml
+        - name: logstash-pipeline-config
+          mountPath: /usr/share/logstash/pipeline/main/logstash.conf
+          subPath: logstash.conf
+        - name: elasticsearch-es-http-certs-public
+          mountPath: "/usr/share/logstash/certs/"
+          readOnly: true
+
+      volumes:
+      - name: logstash-config
+        configMap:
+          name: logstash-config
+      - name: logstash-pipeline-manager-config
+        configMap:
+          name: logstash-pipeline-manager-config
+      - name: logstash-pipeline-config
+        configMap:
+          name: logstash-pipeline-config
+      - name: elasticsearch-es-http-certs-public
+        secret:
+          secretName: elasticsearch-es-http-certs-public
+          items:
+          - key: ca.crt
+            path: ca.crt
+      nodeSelector:
+        node_group: management-private

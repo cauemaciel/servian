@@ -1,0 +1,49 @@
+spec:
+  name: alert-email
+  email_configs:
+    - to: noc@quality.com.br
+      send_resolved: true
+      require_tls: true
+      hello: quality.com.br
+      from: monitoramento@quality.com.br
+      smarthost: 'smtp-relay.gmail.com:587'
+      tls_config: {}
+      headers:
+        subject: ' [TIDAS] Cluster HML -  {{ .CommonAnnotations.summary }} {{ .CommonLabels.namespace }}/{{ .CommonLabels.workload }} - {{ .CommonLabels.severity }}'
+        # https://prometheus.io/docs/alerting/latest/notifications/
+    - to: "atendimento@o2b.com.br"
+      send_resolved: true
+      require_tls: false
+      hello: quality.com.br
+      from: monitoramento@quality.com.br
+      smarthost: 'smtp-relay.gmail.com:587'
+      tls_config: {}
+      headers:
+        subject: ' [TIDAS] Cluster HML -  {{ .CommonAnnotations.summary }} {{ .CommonLabels.namespace }}/{{ .CommonLabels.workload }} - {{ .CommonLabels.severity }}'
+        # https://prometheus.io/docs/alerting/latest/notifications/
+
+---
+
+spec:
+  name: alert-email-infra
+  email_configs:
+    - to: noc@quality.com.br
+      send_resolved: true
+      require_tls: true
+      hello: quality.com.br
+      from: monitoramento@quality.com.br
+      smarthost: 'smtp-relay.gmail.com:587'
+      tls_config: {}
+      headers:
+        subject: ' [TIDAS] Cluster HML -  {{ .CommonAnnotations.summary }} {{ .CommonLabels.node }}/{{ .CommonLabels.instance }} - {{ .CommonLabels.severity }}'
+        # https://prometheus.io/docs/alerting/latest/notifications/
+    - to: "atendimento@o2b.com.br"
+      send_resolved: true
+      require_tls: false
+      hello: quality.com.br
+      from: monitoramento@quality.com.br
+      smarthost: 'smtp-relay.gmail.com:587'
+      tls_config: {}
+      headers:
+        subject: ' [TIDAS] Cluster HML -  {{ .CommonAnnotations.summary }} {{ .CommonLabels.namespace }}/{{ .CommonLabels.workload }} - {{ .CommonLabels.severity }}'
+        # https://prometheus.io/docs/alerting/latest/notifications/

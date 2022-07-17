@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-config
+  namespace: elastic-stack
+data:
+  logstash.yml: |-
+    # The bind address for the HTTP API endpoint
+    http:
+      host: ${LOGSTASH_HOST:0.0.0.0}
+
+    # The number of workers that will, in parallel, execute the filter and output stages of the pipeline
+    pipeline.workers: 15
+
+    # The maximum number of events an individual worker thread will collect from inputs before attempting to execute its filters and outputs
+    pipeline.batch.size: 512

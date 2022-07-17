@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-config
+  namespace: elastic-stack
+data:
+  filebeat.yml: |-
+    filebeat:
+      autodiscover:
+        providers:
+          - type: kubernetes
+            templates:
+
+                - condition.regexp:
+                    kubernetes.namespace: '^(ingress-nginx)'
+                  config:
+                    - type: docker
+                      containers.ids:
+                        - "${data.kubernetes.container.id}"
+                      fields_under_root: true
+                      fields.@metadata.index_reference: 'ingress-nginx'
+                      fields.@metadata.environment: 'development'
+                      processors:
+                        - add_kubernetes_metadata: ~
+                        - add_cloud_metadata: ~
+                        
+    output:
+      logstash:
+        hosts: ['${FILEBEAT_LOGSTASH_HOST}']
+

@@ -1,0 +1,161 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: containers-alerts
+  namespace: cattle-monitoring-system
+spec:
+  groups:
+  - name: containers
+    rules:
+    - alert: CPUPodUsageHigh
+      annotations:
+        description: '{{ $value | humanizePercentage }} Usage of CPU in namespace
+          {{ $labels.namespace }} for container {{ $labels.container }} in pod {{
+          $labels.pod }} more than 10 minutes ago.'
+        summary: Pod With High CPU Usage 
+      expr: |- 
+        sum by (container, pod, namespace) (node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate{container!~"metrics-server-nanny|autoscaler|cert-manager"}) 
+        / 
+        sum(kube_pod_container_resource_requests{resource="cpu",unit="core",container!~"metrics-server-nanny|autoscaler|cert-manager"}) by (container, pod, namespace) 
+        > 
+        ( 80 / 100 )
+      for: 600s
+      labels:
+        type: container
+        severity: P1
+
+    - alert: MemoryPodUsageHigh
+      annotations:
+        description: '{{ $value | humanizePercentage }} Usage of Memory in namespace
+          {{ $labels.namespace }} for container {{ $labels.container }} in pod {{
+          $labels.pod }} more than 10 minutes ago.'
+        summary: Pod With High Memory Usage.
+      expr: |-
+        sum(container_memory_working_set_bytes{container!~"metrics-server-nanny|autoscaler|cert-manager", image!=""} * on(namespace,pod) group_left(workload, workload_type) namespace_workload_pod:kube_pod_owner:relabel{}) by (workload, workload_type, container, pod, namespace) 
+        / 
+        sum(kube_pod_container_resource_requests{resource="memory",unit="byte",container!~"metrics-server-nanny|autoscaler|cert-manager"} * on(namespace,pod) group_left(workload, workload_type) namespace_workload_pod:kube_pod_owner:relabel{}) by (workload, workload_type, container, pod, namespace) 
+        > 
+        ( 80 / 100 )
+      for: 600s
+      labels:
+        type: container
+        severity: P1
+
+    - alert: KubeCPUOvercommit
+      annotations:
+        description: Cluster has overcommitted CPU resource requests for Namespaces
+        summary: Cluster has overcommitted CPU resource requests.
+      expr: |-
+        sum(namespace_cpu:kube_pod_container_resource_requests:sum{}) 
+        / 
+        sum(kube_node_status_allocatable{resource="cpu",unit="core"})
+        >
+        (count(kube_node_status_allocatable{resource="cpu",unit="core"})-1) 
+        / 
+        count(kube_node_status_allocatable{resource="cpu",unit="core"})
+      for: 300s
+      labels:
+        type: container
+        severity: P1
+
+    - alert: KubeMemoryOvercommit
+      annotations:
+        description: Cluster has overcommitted memory resource requests for Pods and
+          cannot tolerate node failure.
+        summary: Cluster has overcommitted memory resource requests.
+      expr: |-
+        sum(namespace_memory:kube_pod_container_resource_requests:sum{})
+          /
+        sum(kube_node_status_allocatable{resource="memory",unit="byte"})
+          >
+        (count(kube_node_status_allocatable{resource="memory",unit="byte"})-1)
+          /
+        count(kube_node_status_allocatable{resource="memory",unit="byte"})
+      for: 300s
+      labels:
+        type: container
+        severity: P1
+
+    - alert: KubePodNotReady
+      annotations:
+        description: Pod {{ $labels.namespace }}/{{ $labels.pod }} has been in a non-ready
+          state for longer than 15 minutes.
+        summary: Pod has been in a non-ready state for more than 15 minutes.
+      expr: |-
+        sum by (namespace, pod) (
+          max by(namespace, pod) (
+            kube_pod_status_phase{job="kube-state-metrics", phase=~"Pending|Unknown|Failed"}
+          ) * on(namespace, pod) group_left(owner_kind) topk by(namespace, pod) (
+            1, max by(namespace, pod, owner_kind) (kube_pod_owner{owner_kind!="Job"})
+          )
+        ) > 0
+      for: 300s
+      labels:
+        type: container
+        severity: P1
+
+    - alert: KubeDeploymentReplicasMismatch
+      annotations:
+        description: Deployment {{ $labels.namespace }}/{{ $labels.deployment }} has
+          not matched the expected number of replicas for longer than 15 minutes.
+        summary: Deployment has not matched the expected number of replicas.
+      expr: |-
+        (
+          kube_deployment_spec_replicas{job="kube-state-metrics", namespace=~".*"}
+            !=
+          kube_deployment_status_replicas_available{job="kube-state-metrics", namespace=~".*"}
+        ) and (
+          changes(kube_deployment_status_replicas_updated{job="kube-state-metrics", namespace=~".*"}[5m])
+            ==
+          0
+        )
+      for: 15s
+      labels:
+        type: container
+        severity: P1
+
+    - alert: KubeStatefulSetReplicasMismatch
+      annotations:
+        description: StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }}
+          has not matched the expected number of replicas for longer than 15 minutes.
+        summary: StatefulSet has not matched the expected number of replicas.
+      expr: |-
+        (
+          kube_statefulset_status_replicas_ready{job="kube-state-metrics", namespace=~".*"}
+            !=
+          kube_statefulset_status_replicas{job="kube-state-metrics", namespace=~".*"}
+        ) and (
+          changes(kube_statefulset_status_replicas_updated{job="kube-state-metrics", namespace=~".*"}[5m])
+            ==
+          0
+        )
+      for: 300s
+      labels:
+        type: container
+        severity: P1
+
+    - alert: KubePodCrashLooping
+      annotations:
+        description: Pod {{ $labels.namespace }}/{{ $labels.pod }} ({{ $labels.container
+          }}) is restarting {{ printf "%.2f" $value }} times / 10 minutes.
+        summary: Pod is crash looping.
+      expr: rate(kube_pod_container_status_restarts_total{job="kube-state-metrics",
+        namespace=~".*"}[10m]) * 60 * 5 > 0
+      for: 15s
+      labels:
+        type: container
+        severity: P1
+
+    - alert: KubeHpaMaxedOut
+      annotations:
+        description: HPA {{ $labels.namespace }}/{{ $labels.hpa }} has been running
+          at max replicas for longer than 15 minutes.
+        summary: HPA is running at max replicas
+      expr: |-
+        kube_horizontalpodautoscaler_status_current_replicas{job="kube-state-metrics", namespace=~".*"}
+          ==
+        kube_horizontalpodautoscaler_spec_max_replicas{job="kube-state-metrics", namespace=~".*"}
+      for: 300s
+      labels:
+        type: container
+        severity: P1
