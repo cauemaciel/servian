@@ -1,4 +1,4 @@
-## https://rancher.management.xgrow.stg
+## https://rancher.management.servian.stg
 
 
 # 2 - Setup Ingress, CertManager and Rancher
@@ -95,7 +95,7 @@ nslookup <Check your DNS Rancher>
 
 helm upgrade -i rancher rancher-stable/rancher \
     --namespace cattle-system \
-    --set hostname=rancher.management.xgrow.com.br \
+    --set hostname=rancher.management.servian.com.br \
     --set replicas=2 \
     --version v2.6.5 \
     --set resources.requests.memory=2048Mi \
@@ -114,14 +114,14 @@ helm upgrade -i rancher rancher-stable/rancher \
 ```
 Solicitar a criação de DNS para as entradas: 
 
-*.management.xgrow.com.br > 34.148.200.238
-*.homolog.xgrow.com.br > 34.148.200.238
+*.management.servian.com.br > 
+*.homolog.servian.com.br > 
 
 ```
 
 If this is the first time you installed Rancher, get started by running this command and clicking the URL it generates:
 
-echo https://rancher.management.xgrow.com.br/dashboard/?setup=$(kubectl get secret --namespace cattle-system bootstrap-secret -o go-template='{{.data.bootstrapPassword|base64decode}}')
+echo https://rancher.management.servian.com.br/dashboard/?setup=$(kubectl get secret --namespace cattle-system bootstrap-secret -o go-template='{{.data.bootstrapPassword|base64decode}}')
 
 ```
 
