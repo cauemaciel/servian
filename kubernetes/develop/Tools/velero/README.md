@@ -1,9 +1,9 @@
-export BUCKET="tidas-velero-backup-homolog"
+export BUCKET="servian-velero-backup-develop"
 export REGION="us-central1"
 export PROJECT_ID="upheld-dragon-237812"
 
 gcloud config set project $PROJECT_ID
-gcloud iam service-accounts create velero-homolog --display-name "Velero service account"
+gcloud iam service-accounts create velero-develop --display-name "Velero service account"
 gcloud iam service-accounts list
 
 gsutil mb gs://$BUCKET/
