@@ -1,5 +1,5 @@
 provider "google" {
-  credentials = "/Users/cauemaciel/.config/gcloud/application_default_credentials.json"
+  credentials = "/home/cauemaciel/.config/gcloud/application_default_credentials.json"
   project     = "topgun-servian"
   region      = "us-east1"
 }
@@ -16,9 +16,9 @@ terraform {
     }
   }
 
-  backend "gcs" {
-    bucket  = "terraform-state-servian-develop"
-    prefix  = "/gke/state"
-    credentials = "/Users/cauemaciel/.config/gcloud/application_default_credentials.json"
-    }
+#  backend "gcs" {
+#    bucket  = "terraform-state-servian-develop"
+#    prefix  = "/gke/state"
+#    credentials = "/Users/cauemaciel/.config/gcloud/application_default_credentials.json"
+#    }
 }

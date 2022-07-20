@@ -27,7 +27,7 @@ module "gke" {
       image_type         = "cos_containerd"
       auto_repair        = true
       auto_upgrade       = true
-#      service_account    = "tf-gke-k8s-production-0njj@xstaging-348615.iam.gserviceaccount.com"
+#      service_account    = "tf-gke-k8s-production-0njj@.iam.gserviceaccount.com"
       preemptible        = true
       initial_node_count = 1
     },
@@ -41,7 +41,7 @@ module "gke" {
       image_type         = "cos_containerd"
       auto_repair        = true
       auto_upgrade       = true
-#      service_account    = "tf-gke-k8s-staging-0njj@xstaging-348615.iam.gserviceaccount.com"
+#      service_account    = "tf-gke-k8s-staging-0njj@.iam.gserviceaccount.com"
       preemptible        = true
       initial_node_count = 1
     }
